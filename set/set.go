@@ -6,7 +6,7 @@ type Set[T comparable] map[T]struct{}
 
 // FromSlice creates and returns a new Set using the supplied values and their type.
 func FromSlice[T comparable](values []T) Set[T] {
-	set := make(Set[T])
+	set := make(Set[T], len(values))
 	set.Add(values...)
 	return set
 }
