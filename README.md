@@ -27,4 +27,4 @@ func main() {
 
 ## License
 
-golang-generics-set is released under the [Unlicense](https://unlicense.org).
+golang-generics-set is released under the [MIT License](https://opensource.org/licenses/MIT).
