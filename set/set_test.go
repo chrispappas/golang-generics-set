@@ -1,6 +1,8 @@
 package set
 
 import (
+	"crypto/rand"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -138,4 +140,180 @@ func TestSymmetricalDifference(t *testing.T) {
 	require.Len(t, diff, 4)
 	test = FromSlice([]int{1, 2, 3, 4})
 	require.True(t, diff.Equals(test))
+}
+
+func BenchmarkFromSlice(b *testing.B) {
+	slice, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	for n := 0; n < b.N; n++ {
+		FromSlice(slice)
+	}
+}
+
+func BenchmarkAddByRangePreallocated(b *testing.B) {
+	slice, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	for n := 0; n < b.N; n++ {
+		set := make(Set[uint64], len(slice))
+		for _, val := range slice {
+			set.Add(val)
+		}
+	}
+}
+
+func BenchmarkAddByRangeUnallocated(b *testing.B) {
+	slice, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	for n := 0; n < b.N; n++ {
+		set := make(Set[uint64])
+		for _, val := range slice {
+			set.Add(val)
+		}
+	}
+}
+
+func BenchmarkDeleteByRange(b *testing.B) {
+	slice, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	set := FromSlice(slice)
+	for n := 0; n < b.N; n++ {
+		for _, value := range slice {
+			set.Delete(value)
+		}
+	}
+}
+
+func BenchmarkDeleteFullSlice(b *testing.B) {
+	slice, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	set := FromSlice(slice)
+	for n := 0; n < b.N; n++ {
+		set.Delete(slice...)
+	}
+}
+
+func BenchmarkHas(b *testing.B) {
+	slice, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	set := FromSlice(slice)
+	for n := 0; n < b.N; n++ {
+		for _, value := range slice {
+			set.Has(value)
+		}
+	}
+}
+
+func BenchmarkValues(b *testing.B) {
+	slice, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	set := FromSlice(slice)
+	for n := 0; n < b.N; n++ {
+		set.Values()
+	}
+}
+
+func BenchmarkEquals(b *testing.B) {
+	slice1, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	slice2, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	s1 := FromSlice(slice1)
+	s2 := FromSlice(slice2)
+	for n := 0; n < b.N; n++ {
+		s1.Equals(s2)
+	}
+}
+
+func BenchmarkDifference(b *testing.B) {
+	slice1, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	slice2, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	s1 := FromSlice(slice1)
+	s2 := FromSlice(slice2)
+	for n := 0; n < b.N; n++ {
+		s1.Difference(s2)
+	}
+}
+
+func BenchmarkSymmetricalDiff(b *testing.B) {
+	slice1, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	slice2, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	s1 := FromSlice(slice1)
+	s2 := FromSlice(slice2)
+	for n := 0; n < b.N; n++ {
+		_ = len(s1.SymmetricalDifference(s2)) == 0
+	}
+}
+
+func BenchmarkIntersection(b *testing.B) {
+	slice1, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	slice2, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	s1 := FromSlice(slice1)
+	s2 := FromSlice(slice2)
+	for n := 0; n < b.N; n++ {
+		s1.Intersection(s2)
+	}
+}
+
+func BenchmarkUnion(b *testing.B) {
+	slice1, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	slice2, err := generateRandomSliceUint64(10_000, 1_000_000)
+	if err != nil {
+		b.Errorf("Error in generating random slice")
+	}
+	s1 := FromSlice(slice1)
+	s2 := FromSlice(slice2)
+	for n := 0; n < b.N; n++ {
+		s1.Union(s2)
+	}
+}
+
+func generateRandomSliceUint64(elements int, max int64) ([]uint64, error) {
+	inputSlice := make([]uint64, elements)
+	for i := 0; i < elements; i++ {
+		num, err := rand.Int(rand.Reader, big.NewInt(max))
+		if err != nil {
+			return nil, err
+		}
+		inputSlice[i] = num.Uint64()
+	}
+	return inputSlice, nil
 }
