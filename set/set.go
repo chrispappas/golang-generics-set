@@ -111,8 +111,15 @@ func (s Set[T]) SymmetricalDifference(other Set[T]) Set[T] {
 	return symmetricalDifference
 }
 
-// Equals is sugar on top of Difference, assumes Equal if Difference is empty.
+// Equals whether the sets have exactly the same elements.
 func (s Set[T]) Equals(other Set[T]) bool {
-	// check the difference both ways, so we know they are truly the same
-	return s.Difference(other).Len() == 0 && other.Difference(s).Len() == 0
+	if s.Len() != other.Len() {
+		return false
+	}
+	for value := range s {
+		if !other.Has(value) {
+			return false
+		}
+	}
+	return true
 }

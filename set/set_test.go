@@ -8,6 +8,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	resultSet64 Set[uint64]
+	resultBool  bool
+)
+
 func TestFromSlice(t *testing.T) {
 	set := FromSlice([]string{"a", "b", "c"})
 	require.Len(t, set, 3)
@@ -143,16 +148,19 @@ func TestSymmetricalDifference(t *testing.T) {
 }
 
 func BenchmarkFromSlice(b *testing.B) {
+	s := make(Set[uint64])
 	slice, err := generateRandomSliceUint64(10_000, 1_000_000)
 	if err != nil {
 		b.Errorf("Error in generating random slice")
 	}
 	for n := 0; n < b.N; n++ {
-		FromSlice(slice)
+		s = FromSlice(slice)
 	}
+	resultSet64 = s
 }
 
 func BenchmarkAddByRangePreallocated(b *testing.B) {
+	s := make(Set[uint64])
 	slice, err := generateRandomSliceUint64(10_000, 1_000_000)
 	if err != nil {
 		b.Errorf("Error in generating random slice")
@@ -162,7 +170,9 @@ func BenchmarkAddByRangePreallocated(b *testing.B) {
 		for _, val := range slice {
 			set.Add(val)
 		}
+		s = set
 	}
+	resultSet64 = s
 }
 
 func BenchmarkAddByRangeUnallocated(b *testing.B) {
@@ -227,19 +237,80 @@ func BenchmarkValues(b *testing.B) {
 }
 
 func BenchmarkEquals(b *testing.B) {
+	var r bool
 	slice1, err := generateRandomSliceUint64(10_000, 1_000_000)
 	if err != nil {
 		b.Errorf("Error in generating random slice")
 	}
-	slice2, err := generateRandomSliceUint64(10_000, 1_000_000)
+	// use the same slice so we are comparing apples to apples
+	s1 := FromSlice(slice1)
+	s2 := FromSlice(slice1)
+	for n := 0; n < b.N; n++ {
+		r = s1.Equals(s2)
+	}
+	resultBool = r
+}
+
+func BenchmarkEqualsDualDifference(b *testing.B) {
+	var r bool
+	slice1, err := generateRandomSliceUint64(10_000, 1_000_000)
 	if err != nil {
 		b.Errorf("Error in generating random slice")
 	}
 	s1 := FromSlice(slice1)
-	s2 := FromSlice(slice2)
+	s2 := FromSlice(slice1)
 	for n := 0; n < b.N; n++ {
-		s1.Equals(s2)
+		r = s1.Difference(s2).Len() == 0 && s2.Difference(s1).Len() == 0
 	}
+	resultBool = r
+}
+
+func BenchmarkEqualsSequential(b *testing.B) {
+	var r bool
+	slice := generateSequentialSliceUint64Ascending(10_000)
+	s1 := FromSlice(slice)
+	s2 := FromSlice(slice)
+
+	for n := 0; n < b.N; n++ {
+		r = s1.Equals(s2)
+	}
+	resultBool = r
+}
+
+func BenchmarkEqualsDualDifferenceSequential(b *testing.B) {
+	var r bool
+	slice := generateSequentialSliceUint64Ascending(10_000)
+	s1 := FromSlice(slice)
+	s2 := FromSlice(slice)
+
+	for n := 0; n < b.N; n++ {
+		r = s1.Difference(s2).Len() == 0 && s2.Difference(s1).Len() == 0
+	}
+	resultBool = r
+}
+
+func BenchmarkEqualsSequentialDesc(b *testing.B) {
+	var r bool
+	slice := generateSequentialSliceUint64Descending(10_000)
+	s1 := FromSlice(slice)
+	s2 := FromSlice(slice)
+
+	for n := 0; n < b.N; n++ {
+		r = s1.Equals(s2)
+	}
+	resultBool = r
+}
+
+func BenchmarkEqualsDualDifferenceSequentialDesc(b *testing.B) {
+	var r bool
+	slice := generateSequentialSliceUint64Descending(10_000)
+	s1 := FromSlice(slice)
+	s2 := FromSlice(slice)
+
+	for n := 0; n < b.N; n++ {
+		r = s1.Difference(s2).Len() == 0 && s2.Difference(s1).Len() == 0
+	}
+	resultBool = r
 }
 
 func BenchmarkDifference(b *testing.B) {
@@ -254,7 +325,7 @@ func BenchmarkDifference(b *testing.B) {
 	s1 := FromSlice(slice1)
 	s2 := FromSlice(slice2)
 	for n := 0; n < b.N; n++ {
-		s1.Difference(s2)
+		resultSet64 = s1.Difference(s2)
 	}
 }
 
@@ -270,7 +341,7 @@ func BenchmarkSymmetricalDiff(b *testing.B) {
 	s1 := FromSlice(slice1)
 	s2 := FromSlice(slice2)
 	for n := 0; n < b.N; n++ {
-		_ = len(s1.SymmetricalDifference(s2)) == 0
+		resultBool = len(s1.SymmetricalDifference(s2)) == 0
 	}
 }
 
@@ -286,7 +357,7 @@ func BenchmarkIntersection(b *testing.B) {
 	s1 := FromSlice(slice1)
 	s2 := FromSlice(slice2)
 	for n := 0; n < b.N; n++ {
-		s1.Intersection(s2)
+		resultSet64 = s1.Intersection(s2)
 	}
 }
 
@@ -302,8 +373,24 @@ func BenchmarkUnion(b *testing.B) {
 	s1 := FromSlice(slice1)
 	s2 := FromSlice(slice2)
 	for n := 0; n < b.N; n++ {
-		s1.Union(s2)
+		resultSet64 = s1.Union(s2)
 	}
+}
+
+func generateSequentialSliceUint64Ascending(elements int) []uint64 {
+	inputSlice := make([]uint64, elements)
+	for i := 0; i < elements; i++ {
+		inputSlice[i] = uint64(i)
+	}
+	return inputSlice
+}
+
+func generateSequentialSliceUint64Descending(elements int) []uint64 {
+	inputSlice := make([]uint64, elements)
+	for i := elements - 1; i >= 0; i-- {
+		inputSlice[i] = uint64(i)
+	}
+	return inputSlice
 }
 
 func generateRandomSliceUint64(elements int, max int64) ([]uint64, error) {
